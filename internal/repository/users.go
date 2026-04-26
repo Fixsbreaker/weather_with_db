@@ -7,7 +7,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/alnur/weather-api/internal/model"
+	"github.com/Fixsbreaker/weather_with_db/internal/model"
 )
 
 var ErrNotFound = errors.New("not found")
