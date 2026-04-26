@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/alnur/weather-api/internal/model"
-	"github.com/alnur/weather-api/internal/repository"
-	"github.com/alnur/weather-api/internal/weather"
+	"github.com/Fixsbreaker/weather_with_db/internal/model"
+	"github.com/Fixsbreaker/weather_with_db/internal/repository"
+	"github.com/Fixsbreaker/weather_with_db/internal/weather"
 )
 
 type weatherRepo interface {
