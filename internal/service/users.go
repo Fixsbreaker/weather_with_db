@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/Fixsbreaker/weather_with_db/internal/model"
-	"github.com/Fixsbreaker/weather_with_db/internal/repository"
 )
 
 type userRepo interface {
