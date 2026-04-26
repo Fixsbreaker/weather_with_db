@@ -2,7 +2,10 @@ module github.com/Fixsbreaker/weather_with_db
 
 go 1.25.2
 
-require github.com/jackc/pgx/v5 v5.6.0
+require (
+	github.com/go-chi/chi/v5 v5.1.0
+	github.com/jackc/pgx/v5 v5.6.0
+)
 
 require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect
