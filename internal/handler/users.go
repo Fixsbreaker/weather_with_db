@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/Fixsbreaker/weather_with_db/internal/middleware"
 	"github.com/Fixsbreaker/weather_with_db/internal/model"
 	"github.com/Fixsbreaker/weather_with_db/internal/repository"
 	"github.com/Fixsbreaker/weather_with_db/internal/service"
@@ -57,6 +58,21 @@ func (h *UserHandler) List(w http.ResponseWriter, r *http.Request) {
 func (h *UserHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	id, ok := parseID(w, r)
 	if !ok {
+		return
+	}
+
+	user, err := h.svc.GetByID(r.Context(), id)
+	if err != nil {
+		handleServiceError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, user)
+}
+
+func (h *UserHandler) GetMe(w http.ResponseWriter, r *http.Request) {
+	id, ok := middleware.GetUserID(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 

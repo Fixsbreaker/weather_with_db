@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/Fixsbreaker/weather_with_db/internal/middleware"
 	"github.com/Fixsbreaker/weather_with_db/internal/model"
 	"github.com/Fixsbreaker/weather_with_db/internal/service"
 )
@@ -27,8 +28,9 @@ func NewCityHandler(svc cityService) *CityHandler {
 }
 
 func (h *CityHandler) Add(w http.ResponseWriter, r *http.Request) {
-	userID, ok := parseID(w, r)
+	userID, ok := middleware.GetUserID(r.Context())
 	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
@@ -47,8 +49,9 @@ func (h *CityHandler) Add(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *CityHandler) List(w http.ResponseWriter, r *http.Request) {
-	userID, ok := parseID(w, r)
+	userID, ok := middleware.GetUserID(r.Context())
 	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
@@ -61,8 +64,9 @@ func (h *CityHandler) List(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *CityHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	userID, ok := parseID(w, r)
+	userID, ok := middleware.GetUserID(r.Context())
 	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 

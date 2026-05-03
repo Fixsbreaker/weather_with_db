@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/Fixsbreaker/weather_with_db/internal/middleware"
 	"github.com/Fixsbreaker/weather_with_db/internal/model"
 	"github.com/Fixsbreaker/weather_with_db/internal/service"
 )
@@ -23,8 +24,9 @@ func NewWeatherHandler(svc weatherService) *WeatherHandler {
 }
 
 func (h *WeatherHandler) GetWeather(w http.ResponseWriter, r *http.Request) {
-	userID, ok := parseID(w, r)
+	userID, ok := middleware.GetUserID(r.Context())
 	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
@@ -37,8 +39,9 @@ func (h *WeatherHandler) GetWeather(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *WeatherHandler) GetHistory(w http.ResponseWriter, r *http.Request) {
-	userID, ok := parseID(w, r)
+	userID, ok := middleware.GetUserID(r.Context())
 	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 

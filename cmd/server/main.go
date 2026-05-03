@@ -11,6 +11,7 @@ import (
 
 	"github.com/Fixsbreaker/weather_with_db/internal/config"
 	"github.com/Fixsbreaker/weather_with_db/internal/handler"
+	customMiddleware "github.com/Fixsbreaker/weather_with_db/internal/middleware"
 	"github.com/Fixsbreaker/weather_with_db/internal/repository"
 	"github.com/Fixsbreaker/weather_with_db/internal/service"
 	"github.com/Fixsbreaker/weather_with_db/internal/weather"
@@ -39,11 +40,12 @@ func main() {
 	weatherClient := weather.NewClient()
 
 	// services
-	userSvc := service.NewUserService(userRepo)
+	userSvc := service.NewUserService(userRepo, cfg.JWTSecret)
 	citySvc := service.NewCityService(cityRepo, userRepo)
 	weatherSvc := service.NewWeatherService(weatherRepo, cityRepo, userRepo, weatherClient)
 
 	// handlers
+	authH := handler.NewAuthHandler(userSvc)
 	userH := handler.NewUserHandler(userSvc)
 	cityH := handler.NewCityHandler(citySvc)
 	weatherH := handler.NewWeatherHandler(weatherSvc)
@@ -54,23 +56,39 @@ func main() {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.RequestID)
 
-	r.Route("/users", func(r chi.Router) {
-		r.Post("/", userH.Create)
-		r.Get("/", userH.List)
+	// Public routes
+	r.Route("/auth", func(r chi.Router) {
+		r.Post("/register", authH.Register)
+		r.Post("/login", authH.Login)
+	})
 
-		r.Route("/{id}", func(r chi.Router) {
-			r.Get("/", userH.GetByID)
-			r.Put("/", userH.Update)
-			r.Delete("/", userH.Delete)
+	// Protected routes
+	r.Group(func(r chi.Router) {
+		r.Use(customMiddleware.AuthMiddleware(cfg.JWTSecret))
 
-			r.Route("/cities", func(r chi.Router) {
-				r.Post("/", cityH.Add)
-				r.Get("/", cityH.List)
-				r.Delete("/{city_id}", cityH.Delete)
+		r.Get("/users/me", userH.GetMe)
+
+		r.Route("/cities", func(r chi.Router) {
+			r.Post("/", cityH.Add)
+			r.Get("/", cityH.List)
+			r.Delete("/{city_id}", cityH.Delete)
+		})
+
+		r.Get("/weather", weatherH.GetWeather)
+		r.Get("/weather/history", weatherH.GetHistory)
+
+		// Admin routes
+		r.Group(func(r chi.Router) {
+			r.Use(customMiddleware.RequireRole("admin"))
+
+			r.Route("/users", func(r chi.Router) {
+				r.Get("/", userH.List)
+				r.Route("/{id}", func(r chi.Router) {
+					r.Get("/", userH.GetByID)
+					r.Put("/", userH.Update)
+					r.Delete("/", userH.Delete)
+				})
 			})
-
-			r.Get("/weather", weatherH.GetWeather)
-			r.Get("/weather/history", weatherH.GetHistory)
 		})
 	})
 
