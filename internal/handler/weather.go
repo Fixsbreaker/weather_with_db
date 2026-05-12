@@ -5,14 +5,13 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/Fixsbreaker/weather_with_db/internal/dto"
 	"github.com/Fixsbreaker/weather_with_db/internal/middleware"
-	"github.com/Fixsbreaker/weather_with_db/internal/model"
-	"github.com/Fixsbreaker/weather_with_db/internal/service"
 )
 
 type weatherService interface {
-	GetCurrentWeather(ctx context.Context, userID int64) ([]model.CityWeather, error)
-	GetHistory(ctx context.Context, userID int64, q service.HistoryQuery) (*model.WeatherHistoryResponse, error)
+	GetCurrentWeather(ctx context.Context, userID int64) ([]dto.CityWeather, error)
+	GetHistory(ctx context.Context, userID int64, q dto.HistoryQuery) (*dto.WeatherHistoryResponse, error)
 }
 
 type WeatherHandler struct {
@@ -54,7 +53,7 @@ func (h *WeatherHandler) GetHistory(w http.ResponseWriter, r *http.Request) {
 	limit := parseQueryInt(r, "limit", 0)
 	offset := parseQueryInt(r, "offset", 0)
 
-	resp, err := h.svc.GetHistory(r.Context(), userID, service.HistoryQuery{
+	resp, err := h.svc.GetHistory(r.Context(), userID, dto.HistoryQuery{
 		City:   city,
 		Limit:  limit,
 		Offset: offset,

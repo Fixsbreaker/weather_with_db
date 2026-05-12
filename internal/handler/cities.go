@@ -8,13 +8,13 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/Fixsbreaker/weather_with_db/internal/dto"
 	"github.com/Fixsbreaker/weather_with_db/internal/middleware"
 	"github.com/Fixsbreaker/weather_with_db/internal/model"
-	"github.com/Fixsbreaker/weather_with_db/internal/service"
 )
 
 type cityService interface {
-	Add(ctx context.Context, userID int64, in service.AddCityInput) (*model.City, error)
+	Add(ctx context.Context, userID int64, in dto.AddCityInput) (*model.City, error)
 	List(ctx context.Context, userID int64) ([]*model.City, error)
 	Delete(ctx context.Context, userID, cityID int64) error
 }
@@ -34,7 +34,7 @@ func (h *CityHandler) Add(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var in service.AddCityInput
+	var in dto.AddCityInput
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
@@ -45,7 +45,7 @@ func (h *CityHandler) Add(w http.ResponseWriter, r *http.Request) {
 		handleServiceError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, city)
+	writeJSON(w, http.StatusCreated, mapCityToResponse(city))
 }
 
 func (h *CityHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -60,7 +60,11 @@ func (h *CityHandler) List(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	writeJSON(w, http.StatusOK, cities)
+	var resp []dto.CityResponse
+	for _, c := range cities {
+		resp = append(resp, mapCityToResponse(c))
+	}
+	writeJSON(w, http.StatusOK, resp)
 }
 
 func (h *CityHandler) Delete(w http.ResponseWriter, r *http.Request) {
@@ -82,4 +86,14 @@ func (h *CityHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// --- helpers ---
+
+func mapCityToResponse(c *model.City) dto.CityResponse {
+	return dto.CityResponse{
+		ID:     c.ID,
+		UserID: c.UserID,
+		Name:   c.Name,
+	}
 }

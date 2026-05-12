@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/Fixsbreaker/weather_with_db/internal/dto"
 	"github.com/Fixsbreaker/weather_with_db/internal/middleware"
 	"github.com/Fixsbreaker/weather_with_db/internal/model"
 	"github.com/Fixsbreaker/weather_with_db/internal/repository"
@@ -16,10 +17,10 @@ import (
 )
 
 type userService interface {
-	Create(ctx context.Context, in service.CreateUserInput) (*model.User, error)
+	Create(ctx context.Context, in dto.CreateUserInput) (*model.User, error)
 	List(ctx context.Context) ([]*model.User, error)
 	GetByID(ctx context.Context, id int64) (*model.User, error)
-	Update(ctx context.Context, id int64, in service.CreateUserInput) (*model.User, error)
+	Update(ctx context.Context, id int64, in dto.CreateUserInput) (*model.User, error)
 	Delete(ctx context.Context, id int64) error
 }
 
@@ -32,7 +33,7 @@ func NewUserHandler(svc userService) *UserHandler {
 }
 
 func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
-	var in service.CreateUserInput
+	var in dto.CreateUserInput
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
@@ -43,7 +44,7 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 		handleServiceError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, user)
+	writeJSON(w, http.StatusCreated, mapUserToResponse(user))
 }
 
 func (h *UserHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -52,7 +53,11 @@ func (h *UserHandler) List(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	writeJSON(w, http.StatusOK, users)
+	var resp []dto.UserResponse
+	for _, u := range users {
+		resp = append(resp, mapUserToResponse(u))
+	}
+	writeJSON(w, http.StatusOK, resp)
 }
 
 func (h *UserHandler) GetByID(w http.ResponseWriter, r *http.Request) {
@@ -66,7 +71,7 @@ func (h *UserHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		handleServiceError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, user)
+	writeJSON(w, http.StatusOK, mapUserToResponse(user))
 }
 
 func (h *UserHandler) GetMe(w http.ResponseWriter, r *http.Request) {
@@ -81,7 +86,7 @@ func (h *UserHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 		handleServiceError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, user)
+	writeJSON(w, http.StatusOK, mapUserToResponse(user))
 }
 
 func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
@@ -90,7 +95,7 @@ func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var in service.CreateUserInput
+	var in dto.CreateUserInput
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
@@ -101,7 +106,7 @@ func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 		handleServiceError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, user)
+	writeJSON(w, http.StatusOK, mapUserToResponse(user))
 }
 
 func (h *UserHandler) Delete(w http.ResponseWriter, r *http.Request) {
@@ -118,6 +123,17 @@ func (h *UserHandler) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 // --- helpers ---
+
+func mapUserToResponse(u *model.User) dto.UserResponse {
+	return dto.UserResponse{
+		ID:        u.ID,
+		Name:      u.Name,
+		Email:     u.Email,
+		Role:      u.Role,
+		CreatedAt: u.CreatedAt,
+		DeletedAt: u.DeletedAt,
+	}
+}
 
 func parseID(w http.ResponseWriter, r *http.Request) (int64, bool) {
 	raw := chi.URLParam(r, "id")
