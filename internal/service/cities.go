@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Fixsbreaker/weather_with_db/internal/dto"
 	"github.com/Fixsbreaker/weather_with_db/internal/model"
 )
 
@@ -24,11 +25,9 @@ func NewCityService(repo cityRepo, userRepo userRepo) *CityService {
 	return &CityService{repo: repo, userRepo: userRepo}
 }
 
-type AddCityInput struct {
-	Name string `json:"name"`
-}
 
-func (s *CityService) Add(ctx context.Context, userID int64, in AddCityInput) (*model.City, error) {
+
+func (s *CityService) Add(ctx context.Context, userID int64, in dto.AddCityInput) (*model.City, error) {
 	name := strings.TrimSpace(in.Name)
 	if name == "" {
 		return nil, fmt.Errorf("%w: city name is required", ErrValidation)

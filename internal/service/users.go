@@ -10,6 +10,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/Fixsbreaker/weather_with_db/internal/dto"
 	"github.com/Fixsbreaker/weather_with_db/internal/model"
 )
 
@@ -31,10 +32,7 @@ func NewUserService(repo userRepo, jwtSecret string) *UserService {
 	return &UserService{repo: repo, jwtSecret: jwtSecret}
 }
 
-type CreateUserInput struct {
-	Name  string `json:"name"`
-	Email string `json:"email"`
-}
+
 
 var ErrValidation = errors.New("validation error")
 var ErrUnauthorized = errors.New("unauthorized")
@@ -50,7 +48,7 @@ func validateUser(name, email string) error {
 }
 
 // Create is kept for backward compatibility or admin creation without password.
-func (s *UserService) Create(ctx context.Context, in CreateUserInput) (*model.User, error) {
+func (s *UserService) Create(ctx context.Context, in dto.CreateUserInput) (*model.User, error) {
 	if err := validateUser(in.Name, in.Email); err != nil {
 		return nil, err
 	}
@@ -58,7 +56,7 @@ func (s *UserService) Create(ctx context.Context, in CreateUserInput) (*model.Us
 	return s.repo.Create(ctx, strings.TrimSpace(in.Name), strings.TrimSpace(in.Email), "", "user")
 }
 
-func (s *UserService) Register(ctx context.Context, in model.RegisterRequest) (*model.User, error) {
+func (s *UserService) Register(ctx context.Context, in dto.RegisterRequest) (*model.User, error) {
 	if err := validateUser(in.Name, in.Email); err != nil {
 		return nil, err
 	}
@@ -74,7 +72,7 @@ func (s *UserService) Register(ctx context.Context, in model.RegisterRequest) (*
 	return s.repo.Create(ctx, strings.TrimSpace(in.Name), strings.TrimSpace(in.Email), string(hash), "user")
 }
 
-func (s *UserService) Login(ctx context.Context, in model.LoginRequest) (string, error) {
+func (s *UserService) Login(ctx context.Context, in dto.LoginRequest) (string, error) {
 	user, err := s.repo.GetByEmail(ctx, in.Email)
 	if err != nil {
 		return "", ErrUnauthorized // don't leak whether user exists or password wrong
@@ -108,7 +106,7 @@ func (s *UserService) GetByID(ctx context.Context, id int64) (*model.User, error
 	return s.repo.GetByID(ctx, id)
 }
 
-func (s *UserService) Update(ctx context.Context, id int64, in CreateUserInput) (*model.User, error) {
+func (s *UserService) Update(ctx context.Context, id int64, in dto.CreateUserInput) (*model.User, error) {
 	if err := validateUser(in.Name, in.Email); err != nil {
 		return nil, err
 	}

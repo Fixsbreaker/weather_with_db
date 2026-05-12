@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/Fixsbreaker/weather_with_db/internal/dto"
 	"github.com/Fixsbreaker/weather_with_db/internal/model"
 	"github.com/Fixsbreaker/weather_with_db/internal/repository"
 	"github.com/Fixsbreaker/weather_with_db/internal/weather"
@@ -19,18 +20,22 @@ type cityRepoForWeather interface {
 	GetCityNames(ctx context.Context, userID int64) ([]string, error)
 }
 
+type weatherClient interface {
+	GetWeather(ctx context.Context, city string) (*weather.WeatherData, error)
+}
+
 type WeatherService struct {
 	weatherRepo weatherRepo
 	cityRepo    cityRepoForWeather
 	userRepo    userRepo
-	client      *weather.Client
+	client      weatherClient
 }
 
 func NewWeatherService(
 	weatherRepo weatherRepo,
 	cityRepo cityRepoForWeather,
 	userRepo userRepo,
-	client *weather.Client,
+	client weatherClient,
 ) *WeatherService {
 	return &WeatherService{
 		weatherRepo: weatherRepo,
@@ -42,7 +47,7 @@ func NewWeatherService(
 
 // GetCurrentWeather fetches live weather for all user's cities in parallel,
 // saves each result to history, and returns an aggregated response.
-func (s *WeatherService) GetCurrentWeather(ctx context.Context, userID int64) ([]model.CityWeather, error) {
+func (s *WeatherService) GetCurrentWeather(ctx context.Context, userID int64) ([]dto.CityWeather, error) {
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -56,11 +61,11 @@ func (s *WeatherService) GetCurrentWeather(ctx context.Context, userID int64) ([
 		return nil, err
 	}
 	if len(cities) == 0 {
-		return []model.CityWeather{}, nil
+		return []dto.CityWeather{}, nil
 	}
 
 	type result struct {
-		cw  model.CityWeather
+		cw  dto.CityWeather
 		err error
 	}
 
@@ -81,7 +86,7 @@ func (s *WeatherService) GetCurrentWeather(ctx context.Context, userID int64) ([
 			// fire-and-forget save; don't fail the whole request if history write fails
 			_ = s.weatherRepo.Save(ctx, userID, city, data.Temperature, data.Description)
 
-			results[i] = result{cw: model.CityWeather{
+			results[i] = result{cw: dto.CityWeather{
 				City:        city,
 				Temperature: data.Temperature,
 				Description: data.Description,
@@ -91,7 +96,7 @@ func (s *WeatherService) GetCurrentWeather(ctx context.Context, userID int64) ([
 
 	wg.Wait()
 
-	var out []model.CityWeather
+	var out []dto.CityWeather
 	for _, r := range results {
 		if r.err != nil {
 			return nil, r.err
@@ -101,13 +106,7 @@ func (s *WeatherService) GetCurrentWeather(ctx context.Context, userID int64) ([
 	return out, nil
 }
 
-type HistoryQuery struct {
-	City   string
-	Limit  int
-	Offset int
-}
-
-func (s *WeatherService) GetHistory(ctx context.Context, userID int64, q HistoryQuery) (*model.WeatherHistoryResponse, error) {
+func (s *WeatherService) GetHistory(ctx context.Context, userID int64, q dto.HistoryQuery) (*dto.WeatherHistoryResponse, error) {
 	if q.City == "" {
 		return nil, fmt.Errorf("%w: city is required", ErrValidation)
 	}
@@ -121,16 +120,16 @@ func (s *WeatherService) GetHistory(ctx context.Context, userID int64, q History
 		return nil, err
 	}
 
-	entries := make([]model.WeatherEntry, len(records))
+	entries := make([]dto.WeatherEntry, len(records))
 	for i, r := range records {
-		entries[i] = model.WeatherEntry{
+		entries[i] = dto.WeatherEntry{
 			Temperature: r.Temperature,
 			Description: r.Description,
 			RequestedAt: r.RequestedAt,
 		}
 	}
 
-	return &model.WeatherHistoryResponse{
+	return &dto.WeatherHistoryResponse{
 		UserID:  userID,
 		City:    q.City,
 		History: entries,
