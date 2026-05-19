@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.uber.org/zap"
 
 	"github.com/Fixsbreaker/weather_with_db/internal/config"
 	"github.com/Fixsbreaker/weather_with_db/internal/handler"
@@ -18,6 +19,9 @@ import (
 )
 
 func main() {
+	logger, _ := zap.NewProduction()
+	defer logger.Sync()
+
 	cfg := config.Load()
 
 	db, err := pgxpool.New(context.Background(), cfg.DatabaseURL)
@@ -52,9 +56,9 @@ func main() {
 
 	// router
 	r := chi.NewRouter()
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
 	r.Use(middleware.RequestID)
+	r.Use(customMiddleware.LoggingMiddleware(logger))
+	r.Use(middleware.Recoverer)
 
 	// Public routes
 	r.Route("/auth", func(r chi.Router) {

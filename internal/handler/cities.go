@@ -42,7 +42,7 @@ func (h *CityHandler) Add(w http.ResponseWriter, r *http.Request) {
 
 	city, err := h.svc.Add(r.Context(), userID, in)
 	if err != nil {
-		handleServiceError(w, err)
+		handleServiceError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, mapCityToResponse(city))
@@ -82,7 +82,7 @@ func (h *CityHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.svc.Delete(r.Context(), userID, cityID); err != nil {
-		handleServiceError(w, err)
+		handleServiceError(w, r, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

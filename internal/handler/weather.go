@@ -31,7 +31,7 @@ func (h *WeatherHandler) GetWeather(w http.ResponseWriter, r *http.Request) {
 
 	data, err := h.svc.GetCurrentWeather(r.Context(), userID)
 	if err != nil {
-		handleServiceError(w, err)
+		handleServiceError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, data)
@@ -59,7 +59,7 @@ func (h *WeatherHandler) GetHistory(w http.ResponseWriter, r *http.Request) {
 		Offset: offset,
 	})
 	if err != nil {
-		handleServiceError(w, err)
+		handleServiceError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, resp)

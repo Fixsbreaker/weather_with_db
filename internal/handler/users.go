@@ -14,6 +14,7 @@ import (
 	"github.com/Fixsbreaker/weather_with_db/internal/model"
 	"github.com/Fixsbreaker/weather_with_db/internal/repository"
 	"github.com/Fixsbreaker/weather_with_db/internal/service"
+	"go.uber.org/zap"
 )
 
 type userService interface {
@@ -41,7 +42,7 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.svc.Create(r.Context(), in)
 	if err != nil {
-		handleServiceError(w, err)
+		handleServiceError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, mapUserToResponse(user))
@@ -68,7 +69,7 @@ func (h *UserHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.svc.GetByID(r.Context(), id)
 	if err != nil {
-		handleServiceError(w, err)
+		handleServiceError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, mapUserToResponse(user))
@@ -83,7 +84,7 @@ func (h *UserHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.svc.GetByID(r.Context(), id)
 	if err != nil {
-		handleServiceError(w, err)
+		handleServiceError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, mapUserToResponse(user))
@@ -103,7 +104,7 @@ func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.svc.Update(r.Context(), id, in)
 	if err != nil {
-		handleServiceError(w, err)
+		handleServiceError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, mapUserToResponse(user))
@@ -116,7 +117,7 @@ func (h *UserHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.svc.Delete(r.Context(), id); err != nil {
-		handleServiceError(w, err)
+		handleServiceError(w, r, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -145,13 +146,18 @@ func parseID(w http.ResponseWriter, r *http.Request) (int64, bool) {
 	return id, true
 }
 
-func handleServiceError(w http.ResponseWriter, err error) {
+func handleServiceError(w http.ResponseWriter, r *http.Request, err error) {
+	logger := middleware.GetLogger(r.Context())
+	
 	switch {
 	case errors.Is(err, repository.ErrNotFound):
+		logger.Warn("resource not found", zap.Error(err))
 		writeError(w, http.StatusNotFound, "not found")
 	case errors.Is(err, service.ErrValidation):
+		logger.Warn("validation error", zap.Error(err))
 		writeError(w, http.StatusBadRequest, err.Error())
 	default:
+		logger.Error("internal server error", zap.Error(err))
 		writeError(w, http.StatusInternalServerError, "internal error")
 	}
 }
