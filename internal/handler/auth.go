@@ -1,20 +1,27 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
 
 	"github.com/Fixsbreaker/weather_with_db/internal/dto"
+	"github.com/Fixsbreaker/weather_with_db/internal/model"
 	"github.com/Fixsbreaker/weather_with_db/internal/service"
 )
 
-type AuthHandler struct {
-	userSvc *service.UserService
+type authService interface {
+	Register(ctx context.Context, in dto.RegisterRequest) (*model.User, error)
+	Login(ctx context.Context, in dto.LoginRequest) (string, error)
 }
 
-func NewAuthHandler(userSvc *service.UserService) *AuthHandler {
-	return &AuthHandler{userSvc: userSvc}
+type AuthHandler struct {
+	svc authService
+}
+
+func NewAuthHandler(svc authService) *AuthHandler {
+	return &AuthHandler{svc: svc}
 }
 
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
@@ -24,7 +31,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.userSvc.Register(r.Context(), req)
+	user, err := h.svc.Register(r.Context(), req)
 	if err != nil {
 		if errors.Is(err, service.ErrValidation) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -54,7 +61,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := h.userSvc.Login(r.Context(), req)
+	token, err := h.svc.Login(r.Context(), req)
 	if err != nil {
 		if errors.Is(err, service.ErrUnauthorized) {
 			http.Error(w, "invalid email or password", http.StatusUnauthorized)
