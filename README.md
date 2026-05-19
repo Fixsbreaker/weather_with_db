@@ -10,6 +10,9 @@ REST API сервис на Go с PostgreSQL для управления поль
 - **golang-jwt/jwt** — авторизация по токенам
 - **wttr.in** — внешний Weather API (бесплатно, без ключей)
 - **Docker Compose** — локальная БД
+- **uber-go/zap** — структурированное логирование
+- **stretchr/testify** — unit-тесты и моки
+- **testcontainers-go** — интеграционные тесты с реальной БД
 
 ## Архитектура (Clean Architecture)
 
@@ -103,6 +106,24 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/weather
 
 # 5. История по городу
 curl -H "Authorization: Bearer $TOKEN" "http://localhost:8080/weather/history?city=Almaty&limit=10"
+```
+
+## Тестирование и Логирование
+
+Проект полностью покрыт тестами (более 70% покрытия `service` слоя) и использует современные подходы:
+
+- **Dependency Injection (DI)**: Все слои (handler, service, repository) связываются через интерфейсы и внедряются через конструкторы в `main.go`. Бизнес-логика не создает зависимости внутри себя.
+- **Unit Тесты**: Реализованы для `handler` и `service` слоев. Для изоляции базы данных используются моки (Mock Repository) через `testify/mock`. Проверяются как позитивные (happy path), так и негативные сценарии (ошибки валидации, 404 Not Found и др.).
+- **Integration Тесты**: Написаны для слоя `repository` с использованием `testcontainers-go` (поднимается временный контейнер PostgreSQL для проверки реальных SQL запросов).
+- **Structured Logging**: Внедрен логгер `zap`. Добавлен `LoggingMiddleware`, который логирует все HTTP-запросы (метод, путь, статус, длительность, request_id). Ошибки в хендлерах также логируются в структурированном виде через контекст запроса.
+
+Запуск тестов:
+```bash
+# Запуск всех тестов (для интеграционных нужен запущенный Docker)
+go test -v ./...
+
+# Проверка покрытия кода
+go test -cover ./internal/service/...
 ```
 
 ## Структура проекта
