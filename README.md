@@ -1,54 +1,65 @@
-# Weather + Users API
+# Weather + Users API (Микросервисная архитектура)
 
-REST API сервис на Go с PostgreSQL для управления пользователями, отслеживания городов и получения погоды. Поддерживает аутентификацию по JWT и ролевую модель.
+REST API решение на Go с разделением на два независимых сервиса, базой данных PostgreSQL, полной Docker-контейнеризацией и оркестрацией через Docker Compose.
 
 ## Стек
 
-- **Go 1.22** — язык сервиса
-- **chi** — HTTP роутер
+- **Go 1.25** — язык программирования сервисов
+- **Docker & Docker Compose** — контейнеризация и оркестрация
+- **chi** — HTTP роутер в API Service
 - **pgx/v5** — PostgreSQL драйвер
 - **golang-jwt/jwt** — авторизация по токенам
-- **wttr.in** — внешний Weather API (бесплатно, без ключей)
-- **Docker Compose** — локальная БД
+- **wttr.in** — внешний публичный Weather API (используется Gateway-сервисом)
 - **uber-go/zap** — структурированное логирование
 - **stretchr/testify** — unit-тесты и моки
 - **testcontainers-go** — интеграционные тесты с реальной БД
 
-## Архитектура (Clean Architecture)
+## Архитектура проекта
+
+Проект разделен на два отдельных сервиса для изоляции бизнес-логики и работы с внешними интеграциями:
 
 ```
-HTTP Request → Middleware (Auth) → Handler → Service → Repository → PostgreSQL
-                                              ↓
-                                         weatherClient → wttr.in
+                  ┌──────────────────────────────────────────────┐
+                  │               DOCKER COMPOSE                 │
+                  │                                              │
+HTTP Requests ───>│ :8080 ──> [ API Service ] ───> [ PostgreSQL ]│
+                  │                  │ (internal url)            │
+                  │                  v                           │
+                  │ :8081 ──> [ Gateway Service ] ───> wttr.in   │
+                  └──────────────────────────────────────────────┘
 ```
 
-Проект строго разделен на слои:
-- **handler**: Обработка HTTP запросов и маппинг в DTO
-- **service**: Бизнес-логика (не зависит от HTTP)
-- **repository**: Работа с БД
-- **dto**: Объекты для передачи данных в API (Request/Response)
-- **model**: Доменные модели базы данных
-- **middleware**: Авторизация и проверки прав доступа
+1. **API Service (Порт 8080)**:
+   - Содержит бизнес-логику, обрабатывает авторизацию по JWT и предоставляет REST API.
+   - Подключается к PostgreSQL для сохранения пользователей, отслеживаемых городов и истории погоды.
+   - Вызывает Gateway Service для получения свежей погоды по внутреннему Docker DNS: `http://gateway-service:8081`.
 
-## Запуск
+2. **Gateway Service (Порт 8081)**:
+   - Изолирует работу с внешним API (`wttr.in`).
+   - Принимает HTTP-запросы и осуществляет запросы во внешний мир с использованием таймаутов.
+   - Не имеет доступа к PostgreSQL и не хранит состояние.
+
+## Запуск проекта
+
+Проект полностью контейнеризирован и запускается одной простой командой:
 
 ```bash
-# 1. Поднять PostgreSQL (миграции применятся автоматически)
-docker-compose up -d
-
-# 2. Запустить сервер
-go run ./cmd/server
+docker compose up --build
 ```
 
-По умолчанию сервер слушает на `:8080`, БД — `localhost:5434`.
+После успешного старта:
+- **API Service** доступен по адресу `http://localhost:8080` (эпик-хэндлер здоровья: `http://localhost:8080/health`).
+- **Gateway Service** доступен по адресу `http://localhost:8081` (хэндлер здоровья: `http://localhost:8081/health`).
+- **PostgreSQL** доступен для внешних клиентов на порту `5433` (по умолчанию логин/пароль/бд: `weather`). Скрипты миграции применяются автоматически при первом запуске контейнера из папки `./api-service/migrations`.
 
-Переменные окружения:
+### Переменные окружения API-сервиса:
 
-| Переменная     | По умолчанию                                              |
-|----------------|-----------------------------------------------------------|
-| `DATABASE_URL` | `postgres://weather:weather@localhost:5434/weather?sslmode=disable` |
-| `JWT_SECRET`   | `super-secret-key`                                        |
-| `PORT`         | `8080`                                                    |
+| Переменная     | Значение в Compose                                         | Описание |
+|----------------|------------------------------------------------------------|----------|
+| `DATABASE_URL` | `postgres://weather:weather@postgres:5432/weather?sslmode=disable` | Подключение к СУБД |
+| `JWT_SECRET`   | `super-secret-key`                                         | Ключ для подписи токенов |
+| `PORT`         | `8080`                                                     | Порт API-сервиса |
+| `GATEWAY_URL`  | `http://gateway-service:8081`                             | Внутренний URL Gateway-сервиса |
 
 ## API
 
@@ -119,8 +130,8 @@ curl -H "Authorization: Bearer $TOKEN" "http://localhost:8080/weather/history?ci
 
 Запуск тестов:
 ```bash
-# Запуск всех тестов (для интеграционных нужен запущенный Docker)
-go test -v ./...
+# Запуск тестов внутри API-сервиса
+cd api-service && go test -v ./...
 
 # Проверка покрытия кода
 go test -cover ./internal/service/...
@@ -130,16 +141,26 @@ go test -cover ./internal/service/...
 
 ```
 .
-├── cmd/server/main.go          # точка входа, DI-сборка
-├── internal/
-│   ├── config/                 # конфигурация из env
-│   ├── dto/                    # API Request/Response структуры
-│   ├── handler/                # HTTP-хендлеры
-│   ├── middleware/             # JWT и авторизация
-│   ├── service/                # бизнес-логика (с интерфейсами)
-│   ├── repository/             # работа с базой данных
-│   ├── model/                  # доменные модели (User, City и т.д.)
-│   └── weather/                # клиент к wttr.in
-├── migrations/                 # SQL миграции
-└── docker-compose.yml
+├── docker-compose.yml           # Единый конфигурационный файл для запуска всего проекта
+│
+├── api-service/                 # Основной сервис бизнес-логики и работы с БД
+│   ├── Dockerfile
+│   ├── go.mod
+│   ├── cmd/server/main.go       # Точка входа API Service
+│   ├── migrations/              # SQL-миграции для PostgreSQL
+│   └── internal/                # Слои чистой архитектуры (Clean Architecture)
+│       ├── config/              # Конфигурация из env
+│       ├── dto/                 # API DTO структуры
+│       ├── handler/             # HTTP-хендлеры
+│       ├── middleware/          # JWT и авторизация
+│       ├── model/               # Модели БД
+│       ├── repository/          # Работа с PostgreSQL
+│       ├── service/             # Бизнес-логика
+│       └── weather/             # HTTP-клиент, вызывающий Gateway Service
+│
+└── gateway-service/             # Отдельный сервис шлюза для работы с внешним wttr.in API
+    ├── Dockerfile
+    ├── go.mod
+    └── cmd/
+        └── main.go              # Точка входа Gateway Service
 ```
