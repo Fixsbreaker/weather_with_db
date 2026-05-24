@@ -9,6 +9,7 @@ type Config struct {
 	DatabaseURL string
 	Port        string
 	JWTSecret   string
+	GatewayURL  string
 }
 
 func Load() Config {
@@ -16,6 +17,7 @@ func Load() Config {
 		DatabaseURL: getEnv("DATABASE_URL", "postgres://weather:weather@localhost:5433/weather?sslmode=disable"),
 		Port:        getEnv("PORT", "8080"),
 		JWTSecret:   getEnv("JWT_SECRET", "super-secret-key"),
+		GatewayURL:  getEnv("GATEWAY_URL", "http://localhost:8081"),
 	}
 }
 

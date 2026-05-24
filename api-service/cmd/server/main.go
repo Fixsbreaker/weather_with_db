@@ -41,7 +41,7 @@ func main() {
 	weatherRepo := repository.NewWeatherRepository(db)
 
 	// weather client
-	weatherClient := weather.NewClient()
+	weatherClient := weather.NewClient(cfg.GatewayURL)
 
 	// services
 	userSvc := service.NewUserService(userRepo, cfg.JWTSecret)
@@ -61,6 +61,11 @@ func main() {
 	r.Use(middleware.Recoverer)
 
 	// Public routes
+	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	})
+
 	r.Route("/auth", func(r chi.Router) {
 		r.Post("/register", authH.Register)
 		r.Post("/login", authH.Login)
